@@ -1,47 +1,63 @@
+import sys
+import os
+
+# --- CORREÇÃO DO ERRO DE IMPORTAÇÃO (GPS DO PYTHON) ---
+# Isso ensina o Streamlit a olhar duas pastas acima para achar o 'src'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+# ------------------------------------------------------
+
 import streamlit as st
 import pandas as pd
-import plotly.io as pio
 from src.engines.predictive_engine import PredictiveEngine
 
-# Configuração de Identidade Visual
-st.set_page_config(page_title="SEMENTE FRAME | Intelligence", page_icon="🌱", layout="centered")
+# Configuração da Página
+st.set_page_config(
+    page_title="SEMENTE FRAME | Data Intelligence",
+    page_icon="🌱",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# CSS para esconder o menu padrão e customizar cores
+# Estilização CSS (Design Limpo e Profissional)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .stApp { background-color: #0e1117; color: #e0e0e0; }
+    .stApp { background-color: #0e1117; color: #f0f2f6; }
     .stButton>button { 
         background-color: #2e7d32; 
         color: white; 
-        border-radius: 20px; 
+        border-radius: 8px; 
         border: none;
-        font-weight: bold;
-        transition: 0.3s;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
-    .stButton>button:hover { background-color: #4caf50; border: none; }
-    .css-1d391kg { background-color: #161b22; } 
+    .stButton>button:hover { background-color: #4caf50; }
     </style>
 """, unsafe_allow_code=True)
 
-# Header Minimalista
-st.markdown("<h1 style='text-align: center; color: #4caf50;'>🌱 SEMENTE FRAME</h1>", unsafe_allow_code=True)
-st.markdown("<p style='text-align: center; color: #8b949e;'>A base da sua inteligência de dados.</p>", unsafe_allow_code=True)
-
-# Sidebar Ultra-Limpa
+# Sidebar
 with st.sidebar:
-    st.markdown("### 🔐 Acesso")
-    O_KEY = st.text_input("OpenAI Key", type="password")
-    G_KEY = st.text_input("Gemini Key", type="password")
+    st.title("🌱 Semente Frame")
+    st.markdown("*Inteligência de Dados Simplificada*")
     st.divider()
-    st.markdown("### 📥 Ingestão")
-    file = st.file_uploader("Suba seu arquivo CSV", type="csv", label_visibility="collapsed")
-    st.divider()
-    generate_btn = st.button("🚀 GERAR GUIA SEMENTE")
+    
+    with st.expander("🔐 Credenciais", expanded=True):
+        O_KEY = st.text_input("OpenAI Key", type="password")
+        G_KEY = st.text_input("Gemini Key", type="password")
 
-# Área Principal: Diálogo com Ruffeil
+    st.divider()
+    file = st.file_uploader("📂 Arraste seu CSV aqui", type="csv")
+    
+    if file:
+        st.success("Dados prontos!")
+        generate_btn = st.button("📝 Gerar Relatório Completo")
+    else:
+        generate_btn = False
+
+# Área Principal
 if O_KEY and G_KEY and file:
     if "engine" not in st.session_state:
         st.session_state.engine = PredictiveEngine(openai_key=O_KEY, gemini_key=G_KEY)
@@ -50,40 +66,43 @@ if O_KEY and G_KEY and file:
     ctx = st.session_state.engine.process(df)
 
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [{
+            "role": "assistant", 
+            "content": "Olá! Sou o Ruffeil. Já analisei a estrutura dos seus dados. O que você gostaria de descobrir hoje?"
+        }]
 
-    # Chat estilizado
-    chat_placeholder = st.container()
-    with chat_placeholder:
+    # Chat Container
+    chat_container = st.container()
+    with chat_container:
         for msg in st.session_state.messages:
-            with st.chat_message(msg["role"], avatar="🌱" if msg["role"]=="assistant" else None):
+            avatar = "🌱" if msg["role"] == "assistant" else "👤"
+            with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Fale com Ruffeil sobre este dataset..."):
+    # Input
+    if prompt := st.chat_input("Pergunte ao consultor..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with chat_placeholder.chat_message("user"): st.markdown(prompt)
+        with chat_container.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
         
-        with chat_placeholder.chat_message("assistant", avatar="🌱"):
-            res = st.session_state.engine.chat_with_gpt(prompt, ctx)
+        with chat_container.chat_message("assistant", avatar="🌱"):
+            with st.spinner("Ruffeil está pensando..."):
+                res = st.session_state.engine.chat_with_gpt(prompt, ctx)
             st.markdown(res)
             st.session_state.messages.append({"role": "assistant", "content": res})
 
-    # Trigger do Relatório (Estilo Funil dos seus PDFs)
+    # Relatório
     if generate_btn:
         st.divider()
-        with st.status("🛠️ Aplicando Funil de Refinamento SEMENTE...", expanded=True):
+        with st.status("🏗️ Construindo Guia SEMENTE...", expanded=True):
+            st.write("🔍 Diagnosticando...")
+            st.write("🚀 Refinando...")
             report = st.session_state.engine.generate_final_report(ctx)
-            st.write("✅ Diagnóstico Concluído")
-            st.write("✅ Dados Padronizados")
-            st.write("✅ Relatório SEMENTE Assinado")
         
         st.markdown(report)
-        st.download_button("📂 BAIXAR RELATÓRIO PDF (Markdown)", report, "guia_semente.md")
+        st.download_button("📥 Baixar PDF (Markdown)", report, "Guia_Semente.md")
 
 else:
-    st.markdown("""
-        <div style='text-align: center; padding: 50px;'>
-            <h3 style='color: #8b949e;'>Aguardando chaves e dados para iniciar...</h3>
-            <p>Insira suas credenciais na barra lateral para ativar o ecossistema.</p>
-        </div>
-    """, unsafe_allow_code=True)
+    # Tela de Boas Vindas
+    st.markdown("<h1 style='text-align: center;'>Bem-vindo ao Ecossistema SEMENTE 🌱</h1>", unsafe_allow_code=True)
+    st.markdown("<p style='text-align: center; color: #8b949e;'>Insira suas chaves na lateral para começar.</p>", unsafe_allow_code=True)
