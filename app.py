@@ -1,73 +1,177 @@
 import streamlit as st
 import pandas as pd
-import json
-import plotly.io as pio
-from src.core.orchestrator import PipelineOrchestrator
-from src.engines.sales_engine import SalesEngine
-from src.engines.agro_engine import AgroEngine
-from src.engines.predictive_engine import PredictiveEngine
-from src.core.contract import (
-    SalesContract, AgroContract, TitanicContract
+import google.generativeai as genai
+from openai import OpenAI
+
+# ==========================================================
+# 1. CONFIGURAÇÃO E ESTILO (FRONT-END)
+# ==========================================================
+st.set_page_config(
+    page_title="SEMENTE FRAME | Data Intelligence",
+    page_icon="🌱",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.set_page_config(page_title="SEMENTE_FRAME Suite", page_icon="🌱", layout="wide")
-
-st.title("🌱 SEMENTE_FRAME | Intelligence Suite")
-st.markdown("---")
-
-# Sidebar - Navegação
-st.sidebar.header("Painel de Controle")
-tab_selection = st.sidebar.radio("Navegar para:", ["Dashboard", "Nova Análise", "Histórico"])
-
-if tab_selection == "Nova Análise":
-    ramo = st.sidebar.selectbox("Selecione o Ramo", ["Titanic", "Agro", "Varejo"])
+# Estilo CSS Dark Mode Profissional
+st.markdown("""
+    <style>
+    /* Limpeza da Interface */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     
-    mapping = {
-        "Varejo": (SalesEngine(), SalesContract),
-        "Agro": (AgroEngine(), AgroContract),
-        "Titanic": (PredictiveEngine(), TitanicContract)
+    /* Cores do SEMENTE */
+    .stApp { background-color: #0E1117; color: #E0E0E0; }
+    
+    /* Botões Verdes */
+    .stButton>button { 
+        background-color: #238636; 
+        color: white; 
+        border: none; 
+        border-radius: 6px;
+        font-weight: 600;
     }
+    .stButton>button:hover { background-color: #2EA043; }
     
-    engine, schema = mapping[ramo]
-    
-    uploaded_file = st.file_uploader("Suba seu arquivo (CSV)", type=["csv"])
-    
-    if uploaded_file:
-        if st.button("Executar Inteligência 360°"):
-            with st.spinner("SEMENTE_FRAME: Validando, Limpando e Analisando..."):
-                # Salvando temp
-                temp_path = f"temp_{uploaded_file.name}"
-                with open(temp_path, "wb") as f: f.write(uploaded_file.getbuffer())
-                
-                # Orquestração
-                maestro = PipelineOrchestrator(engine, schema, ramo)
-                apresentacao, report_path = maestro.run_pipeline(temp_path)
-                
-                # Exibição
-                st.success("Processamento concluído!")
-                
-                c1, c2 = st.columns([1, 1])
-                
-                with c1:
-                    st.subheader("🤖 Análise Estratégica (IA)")
-                    st.markdown(apresentacao)
-                
-                with c2:
-                    st.subheader("📊 Visualizações de BI")
-                    # Recuperando dados do banco para gráficos (via engine output)
-                    # No MVP, vamos usar dados direto da engine processada
-                    res = engine.process(pd.read_csv(temp_path))
-                    if 'charts' in res:
-                        st.plotly_chart(pio.from_json(res['charts']['class_chart']), use_container_width=True)
-                        st.plotly_chart(pio.from_json(res['charts']['sex_chart']), use_container_width=True)
+    /* Input Chat */
+    .stChatInputContainer { padding-bottom: 20px; }
+    </style>
+""", unsafe_allow_code=True)
 
-elif tab_selection == "Dashboard":
-    st.subheader("📈 Visão Consolidada do Core")
-    # Aqui chamamos a lógica do dashboard_preview que criamos antes
-    import sqlite3
-    conn = sqlite3.connect('semente_frame.db')
-    df_logs = pd.read_sql_query("SELECT * FROM tb_ingestion_logs", conn)
-    st.dataframe(df_logs, use_container_width=True)
-    st.metric("Total de Ingestões", len(df_logs))
-    conn.close()
+# ==========================================================
+# 2. LÓGICA DE NEGÓCIO (BACK-END EMBUTIDO)
+# ==========================================================
+class SementeBrain:
+    def __init__(self, openai_key, gemini_key):
+        self.openai_key = openai_key
+        self.gemini_key = gemini_key
+        
+        # Inicializa APIs se as chaves existirem
+        if self.gemini_key:
+            genai.configure(api_key=self.gemini_key)
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
+        
+        if self.openai_key:
+            self.openai_client = OpenAI(api_key=self.openai_key)
 
+    def get_data_summary(self, df):
+        """Cria um resumo técnico do DataFrame para a IA entender"""
+        buffer = []
+        buffer.append(f"Linhas: {len(df)} | Colunas: {len(df.columns)}")
+        buffer.append(f"Nomes das Colunas: {list(df.columns)}")
+        buffer.append(f"Tipos: {df.dtypes.to_dict()}")
+        
+        missing = df.isnull().sum()
+        if missing.sum() > 0:
+            buffer.append(f"Dados Faltantes: {missing[missing > 0].to_dict()}")
+            
+        buffer.append(f"Amostra dos dados: {df.head(2).to_dict()}")
+        return "\n".join(str(x) for x in buffer)
+
+    def chat_ruffeil(self, prompt, context):
+        """Consulta o Consultor (GPT-4o)"""
+        if not self.openai_key: return "⚠️ Chave OpenAI não configurada."
+        
+        system_prompt = f"""
+        Você é Ruffeil, Engenheiro de Dados Sênior do SEMENTE FRAME.
+        Seu estilo: Direto, Técnico e Educativo.
+        
+        CONTEXTO DOS DADOS:
+        {context}
+        
+        Responda à pergunta do usuário com base nesses dados.
+        """
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"❌ Erro OpenAI: {e}"
+
+    def generate_report(self, context):
+        """Gera o Relatório de Refinamento (Gemini)"""
+        if not self.gemini_key: return "⚠️ Chave Gemini não configurada."
+        
+        prompt = f"""
+        Aja como um Auditor de Qualidade de Dados. Gere um relatório Markdown.
+        
+        DADOS:
+        {context}
+        
+        ESTRUTURA DO RELATÓRIO:
+        1. 🎯 **Diagnóstico**: O que temos aqui?
+        2. 🧹 **Limpeza Necessária**: Onde estão os problemas (nulos, tipos)?
+        3. 🚀 **Recomendação SEMENTE**: 3 passos para melhorar esses dados.
+        """
+        try:
+            response = self.gemini_model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"❌ Erro Gemini: {e}"
+
+# ==========================================================
+# 3. INTERFACE (UI)
+# ==========================================================
+def main():
+    # --- SIDEBAR ---
+    with st.sidebar:
+        st.title("🌱 SEMENTE FRAME")
+        st.markdown("v1.0.0 | Monolito")
+        st.divider()
+        
+        with st.expander("🔐 Acesso", expanded=True):
+            openai_key = st.text_input("OpenAI Key", type="password")
+            gemini_key = st.text_input("Gemini Key", type="password")
+            
+        uploaded_file = st.file_uploader("📂 Carregar CSV", type=["csv"])
+
+    # --- MAIN AREA ---
+    if uploaded_file and openai_key and gemini_key:
+        # Carregar ou Recuperar Estado
+        if "df" not in st.session_state:
+            st.session_state.df = pd.read_csv(uploaded_file)
+            st.session_state.brain = SementeBrain(openai_key, gemini_key)
+            st.session_state.context = st.session_state.brain.get_data_summary(st.session_state.df)
+            st.session_state.messages = [{"role": "assistant", "content": "Olá! Sou o Ruffeil. Dados carregados. Como posso ajudar?"}]
+
+        # Exibir Chat
+        st.subheader("💬 Consultoria Semente")
+        for msg in st.session_state.messages:
+            avatar = "🌱" if msg["role"] == "assistant" else "👤"
+            with st.chat_message(msg["role"], avatar=avatar):
+                st.markdown(msg["content"])
+
+        # Input do Usuário
+        if prompt := st.chat_input("Pergunte sobre os dados..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(prompt)
+            
+            with st.chat_message("assistant", avatar="🌱"):
+                with st.spinner("Analisando..."):
+                    resp = st.session_state.brain.chat_ruffeil(prompt, st.session_state.context)
+                    st.markdown(resp)
+                    st.session_state.messages.append({"role": "assistant", "content": resp})
+
+        # Área de Relatório
+        st.divider()
+        if st.button("📝 Gerar Relatório Técnico Completo"):
+            with st.spinner("Gemini auditando dados..."):
+                report = st.session_state.brain.generate_report(st.session_state.context)
+            
+            with st.expander("📄 Visualizar Relatório", expanded=True):
+                st.markdown(report)
+
+    else:
+        # Tela Inicial
+        st.markdown("<br><h1 style='text-align: center'>Bem-vindo ao SEMENTE FRAME 🌱</h1>", unsafe_allow_code=True)
+        st.info("👈 Insira suas chaves e suba um CSV para começar.")
+
+if __name__ == "__main__":
+    main()
