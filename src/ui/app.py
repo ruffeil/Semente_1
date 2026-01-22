@@ -3,43 +3,45 @@ import pandas as pd
 import plotly.io as pio
 from src.engines.predictive_engine import PredictiveEngine
 
-# Configuração da Página com Branding SEMENTE
-st.set_page_config(
-    page_title="SEMENTE FRAME | Intelligence",
-    page_icon="🌱",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Configuração de Identidade Visual
+st.set_page_config(page_title="SEMENTE FRAME | Intelligence", page_icon="🌱", layout="centered")
 
-# Estilização de CSS para um look profissional
+# CSS para esconder o menu padrão e customizar cores
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #2e7d32; color: white; }
-    .stChatFloatingInputContainer { bottom: 20px; }
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stApp { background-color: #0e1117; color: #e0e0e0; }
+    .stButton>button { 
+        background-color: #2e7d32; 
+        color: white; 
+        border-radius: 20px; 
+        border: none;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .stButton>button:hover { background-color: #4caf50; border: none; }
+    .css-1d391kg { background-color: #161b22; } 
     </style>
 """, unsafe_allow_code=True)
 
-# Header SEMENTE
-st.markdown("<h1 style='color: #2e7d32;'>🌱 SEMENTE FRAME</h1>", unsafe_allow_code=True)
-st.caption("A base da sua inteligência de dados | Powered by Ruffeil Architecture")
+# Header Minimalista
+st.markdown("<h1 style='text-align: center; color: #4caf50;'>🌱 SEMENTE FRAME</h1>", unsafe_allow_code=True)
+st.markdown("<p style='text-align: center; color: #8b949e;'>A base da sua inteligência de dados.</p>", unsafe_allow_code=True)
 
-# Sidebar de Configuração (O que o usuário não precisa ver no centro)
+# Sidebar Ultra-Limpa
 with st.sidebar:
-    st.image("https://via.placeholder.com/150x50?text=SEMENTE+AI", use_container_width=True)
-    st.title("🛡️ Painel de Controle")
-    
-    with st.expander("🔑 Credenciais de IA", expanded=False):
-        O_KEY = st.text_input("OpenAI Key", type="password", help="Usada para o chat com Ruffeil")
-        G_KEY = st.text_input("Gemini Key", type="password", help="Usada para o Relatório Técnico")
-    
+    st.markdown("### 🔐 Acesso")
+    O_KEY = st.text_input("OpenAI Key", type="password")
+    G_KEY = st.text_input("Gemini Key", type="password")
     st.divider()
-    file = st.file_uploader("📥 Ingestão de Dados (CSV)", type="csv")
-    
-    if st.button("🚀 Gerar Relatório SEMENTE"):
-        st.session_state.generate_report = True
+    st.markdown("### 📥 Ingestão")
+    file = st.file_uploader("Suba seu arquivo CSV", type="csv", label_visibility="collapsed")
+    st.divider()
+    generate_btn = st.button("🚀 GERAR GUIA SEMENTE")
 
-# Lógica Principal
+# Área Principal: Diálogo com Ruffeil
 if O_KEY and G_KEY and file:
     if "engine" not in st.session_state:
         st.session_state.engine = PredictiveEngine(openai_key=O_KEY, gemini_key=G_KEY)
@@ -47,34 +49,41 @@ if O_KEY and G_KEY and file:
     df = pd.read_csv(file)
     ctx = st.session_state.engine.process(df)
 
-    # Espaço do Chat (O Diálogo com Ruffeil)
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Olá! Eu sou o Ruffeil. Carreguei seus dados no ecossistema Semente. Como posso te ajudar a refiná-los hoje?"}]
+        st.session_state.messages = []
 
-    for msg in st.session_state.messages:
-        avatar = "🌱" if msg["role"] == "assistant" else None
-        st.chat_message(msg["role"], avatar=avatar).markdown(msg["content"])
+    # Chat estilizado
+    chat_placeholder = st.container()
+    with chat_placeholder:
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"], avatar="🌱" if msg["role"]=="assistant" else None):
+                st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Pergunte ao consultor..."):
+    if prompt := st.chat_input("Fale com Ruffeil sobre este dataset..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+        with chat_placeholder.chat_message("user"): st.markdown(prompt)
         
-        with st.chat_message("assistant", avatar="🌱"):
+        with chat_placeholder.chat_message("assistant", avatar="🌱"):
             res = st.session_state.engine.chat_with_gpt(prompt, ctx)
             st.markdown(res)
             st.session_state.messages.append({"role": "assistant", "content": res})
 
-    # Exibição do Relatório (Quando acionado)
-    if st.session_state.get("generate_report"):
+    # Trigger do Relatório (Estilo Funil dos seus PDFs)
+    if generate_btn:
         st.divider()
-        with st.status("Refinando Dados no Funil SEMENTE...", expanded=True):
+        with st.status("🛠️ Aplicando Funil de Refinamento SEMENTE...", expanded=True):
             report = st.session_state.engine.generate_final_report(ctx)
+            st.write("✅ Diagnóstico Concluído")
+            st.write("✅ Dados Padronizados")
+            st.write("✅ Relatório SEMENTE Assinado")
         
         st.markdown(report)
-        st.download_button("💾 Baixar Guia de Sobrevivência SEMENTE", report, "relatorio_semente.md")
-        st.session_state.generate_report = False
+        st.download_button("📂 BAIXAR RELATÓRIO PDF (Markdown)", report, "guia_semente.md")
 
 else:
-    # Tela de Boas-vindas amigável
-    st.info("👋 Bem-vindo ao Semente Frame! Para começar, insira suas chaves de API e carregue um arquivo CSV na barra lateral.")
-    st.image("https://via.placeholder.com/800x400?text=SEMENTE+FRAME+WORKFLOW", caption="O seu Funil de Refinamento de Dados")
+    st.markdown("""
+        <div style='text-align: center; padding: 50px;'>
+            <h3 style='color: #8b949e;'>Aguardando chaves e dados para iniciar...</h3>
+            <p>Insira suas credenciais na barra lateral para ativar o ecossistema.</p>
+        </div>
+    """, unsafe_allow_code=True)
