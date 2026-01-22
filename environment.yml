@@ -1,0 +1,16 @@
+name: semente-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - pandas<2.0.0,>=1.5.3
+      - scikit-learn==1.2.2
+      - pycaret==3.1.0
+      - pydantic==2.4.0
+      - ruff
+      - pytest
+      - python-dotenv
+      - plotly

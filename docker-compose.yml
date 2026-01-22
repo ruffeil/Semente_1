@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  semente-portal:
+    build: .
+    container_name: semente_frame_web
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./semente_frame.db:/app/semente_frame.db
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    restart: always

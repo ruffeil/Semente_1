@@ -1,0 +1,3 @@
+id_pedido,origem,destino,peso_kg,prazo_dias
+PED-01,Belem,Sao Paulo,150.0,5
+PED-02,Fortaleza,Manaus,45.5,3

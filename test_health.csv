@@ -1,0 +1,3 @@
+paciente_id,idade,pressao_sistolica,nivel_glicose,data_exame
+P001,45,145,110.5,2026-01-20
+P002,32,120,95.0,2026-01-21

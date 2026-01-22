@@ -1,0 +1,9 @@
+[tool.poetry]
+name = "semente-frame"
+version = "0.1.0"
+description = "Framework de Data Engineering e ML Agnóstico"
+authors = ["Ruffeil"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "B"] # Regras básicas de Clean Code

@@ -1,0 +1,3 @@
+id_maquina,temperatura,vibracao_rpm,horas_ativas,data_sensor
+M1,88.5,1200,450.0,2026-01-22
+M2,42.0,1100,2100.0,2026-01-22
