@@ -14,6 +14,7 @@ st.set_page_config(
 )
 
 # Estilo CSS Dark Mode Profissional
+# CORREÇÃO: Trocamos 'unsafe_allow_code' por 'unsafe_allow_html'
 st.markdown("""
     <style>
     /* Limpeza da Interface */
@@ -37,7 +38,7 @@ st.markdown("""
     /* Input Chat */
     .stChatInputContainer { padding-bottom: 20px; }
     </style>
-""", unsafe_allow_code=True)
+""", unsafe_allow_html=True)
 
 # ==========================================================
 # 2. LÓGICA DE NEGÓCIO (BACK-END EMBUTIDO)
